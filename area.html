@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>La Evolución del Mercado del Anime</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #f7f0e2;
+  font-family: 'Outfit', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 52px 40px 44px;
+  min-height: 100vh;
+}
+
+.page { width: 100%; max-width: 1300px; }
+
+/* ── HEADER ── */
+.header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 56px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.title-block .kicker {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 2.8px;
+  text-transform: uppercase;
+  color: #C94B6D;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.title-block h1 {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 2.6rem;
+  line-height: 1.1;
+  color: #1a1410;
+  letter-spacing: -1px;
+}
+
+.subtitle {
+  font-size: 0.750rem;
+  font-weight: 300;
+  color: #6b6358;
+  line-height: 1.7;
+  padding-bottom: 2px;
+}
+.subtitle strong { color: #2a2218; font-weight: 600; }
+
+.rule {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(to right, #c9bfad 40%, transparent);
+  margin: 20px 0 0;
+}
+
+/* ── CHART ── */
+#chart-container { 
+    width: 100%; 
+    position: relative; /* Clave para que las cajas HTML floten aquí */
+}
+svg { display: block; overflow: visible; }
+
+/* ── CAJAS DE ANOTACIÓN HTML (NUEVO) ── */
+.anno-box {
+    position: absolute;
+    background: #fdf8ee;
+    border: 1px solid #ddd5c4;
+    border-radius: 5px;
+    padding: 12px;
+    width: max-content; /* Se ajusta a la palabra más larga */
+    max-width: 220px;   /* Pero nunca pasa de 220px de ancho */
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.06);
+    pointer-events: none;
+}
+.anno-box strong {
+    display: block;
+    font-size: 11.5px;
+    color: #1a1410;
+    margin-bottom: 4px;
+}
+.anno-box p {
+    font-size: 9.5px;
+    color: #5a5048;
+    line-height: 1.4;
+    text-align: left;
+}
+
+/* ── FOOTER ── */
+.footer {
+  margin-top: 16px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  padding-top: 10px;
+}
+.source {
+  font-size: 0.6rem;
+  color: #b0a090;
+  line-height: 1.6;
+}
+.source strong { color: #8a7a6a; font-weight: 600; }
+
+/* ── TEXTOS INTERNOS FLOTANTES ── */
+.in-band-anno {
+    position: absolute;
+    width: max-content;
+    max-width: 200px; /* <-- AQUÍ LIMITAS EL ANCHO ANTES DEL SALTO DE LÍNEA */
+    text-align: left;
+    color: #fff;
+    pointer-events: none;
+    transform: translate(-50%, -50%); /* Esto centra el texto exactamente en la coordenada */
+    text-shadow: 1px 1px 4px rgba(31, 31, 31, 0.5); /* Sombrita para que resalte sobre el color */
+    line-height: 0.8;
+
+}
+.in-band-anno .title {
+    font-size: 11px; /* Tamaño del título */
+    font-weight: 600; /* Negrita */
+    font-style: italic;
+    display: block;
+}
+.in-band-anno .text {
+    font-size: 9.5px; /* Tamaño del texto normal */
+    font-weight: 200;
+    font-style: italic;
+    opacity: 0.85;
+}
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="title-block">
+      <span class="kicker">Anime TV · Top 50 Anual · 2000–2025</span>
+      <h1>La Evolución del<br>Mercado del Anime</h1>
+    </div>
+    <p class="subtitle">
+        Este <strong>gráfico de área apilada</strong> ilustra la drástica transformación del mercado televisivo de animación durante un cuarto de siglo. 
+        Al aislar la cuota de mercado del <strong>Top 50 de popularidad anual</strong>, observamos un 
+        <strong>cambio de paradigma estructural</strong>: el colapso de la ciencia ficción frente al dominio de la fantasía y el <em>isekai</em> (historias de reencarnación en mundos paralelos). 
+        El análisis distingue entre animes que pertenecen exclusivamente a un género y aquellos que comparten ambos, revelando cómo la nueva demanda global reconfiguró la industria.
+    </p>
+  </div>
+
+  <div class="rule"></div>
+  <div id="chart-container"></div>
+
+  <div class="footer">
+    <p class="source">
+      <strong>Fuente:</strong> AniList API &nbsp;·&nbsp;
+      Top 50 de popularidad por año de emisión, 2000–2025 &nbsp;·&nbsp;
+      Macrogéneros asignados mediante etiquetas oficiales de AniList &nbsp;·&nbsp;
+      Elaboración propia
+    </p>
+  </div>
+
+</div>
+
+<script>
+const CATS = [
+  { key: "Sci-Fi / Mecha Puro",          color: "#3B76B0", label: "Sci-Fi / Mecha"          },
+  { key: "Híbrido (Acción + Sci-Fi)",    color: "#8E5B9E", label: "Fantasía / Acción + Sci-Fi / Mecha"  },
+  { key: "Fantasía / Acción / Aventura", color: "#C94B6D", label: "Fantasía / Acción "        },
+  { key: "Otros Géneros",                color: "#9B9389", label: "Otros Géneros"            },
+];
+const keys     = CATS.map(c => c.key);
+const colorMap = Object.fromEntries(CATS.map(c => [c.key, c.color]));
+const labelMap = Object.fromEntries(CATS.map(c => [c.key, c.label]));
+
+/* TEXTOS SIMPLIFICADOS: Ya no necesitas cortarlos manualmente en arrays */
+const ANNOTATIONS = [
+  {
+    year: 2005,
+    title: "Crisis del Mecha y Sci-Fi",
+    text: "El alto costo del CGI hizo que la industria priorizará el Moe y el slice-of-life, modelos que permitían reducir el riesgo financiero mediante la venta de merchandising de personajes y animación menos costosa."
+  },
+  {
+    year: 2012,
+    title: "El giro al Isekai",
+    text: "Con el éxito de <b>Sword Art Online</b>, la fantasía de 'mundos paralelos' se volvió el motor financiero de la industria, desplazando a la ciencia ficción tradicional."
+  }
+];
+
+const IN_BAND = [
+  { 
+    key: "Híbrido (Acción + Sci-Fi)", 
+    year: 2002, 
+    title: "<br><br>Cúspide técnica", 
+    text: "Fin del auge Sci-Fi de los 90.<br>Ej: <b>GitS: SAC</b> y <b>Planetes</b>.<br>Último gran ciclo de realismo<br>y complejidad tecnológica." 
+  },
+  { 
+    key: "Otros Géneros", 
+    year: 2008, 
+    title: "Slice-of-life y romance", 
+    text: "Durante los 2000, las historias cotidianas dominan. Éxitos como <b>K-On!</b> priorizan el carisma de personajes sobre la acción." 
+  },
+  { 
+    key: "Fantasía / Acción / Aventura", 
+    year: 2022, 
+    title: "Hegemonía del Streaming", 
+    text: "La globalización y estudios como <b>MAPPA</b> o <b>Ufotable</b> elevaron la acción a estándares de cine, consolidando la fantasía como el género líder."
+  }
+];
+
+async function draw() {
+  let rawData;
+  try {
+    rawData = await d3.csv('anime_exclusivo.csv');
+  } catch (e) {
+    document.getElementById('chart-container').innerHTML = `<p style="padding:20px;color:#C94B6D;">Error: no se encontró anime_exclusivo.csv</p>`;
+    return;
+  }
+
+  const data  = rawData.filter(d => +d.rank_in_year <= 50);
+  const YEARS = d3.range(2000, 2026);
+
+  const yearData = YEARS.map(yr => {
+    const items = data.filter(d => +d.year === yr);
+    const total = items.length || 1;
+    const obj   = { year: yr };
+    keys.forEach(k => obj[k] = (items.filter(d => d.macro_categoria === k).length / total) * 100);
+    return obj;
+  });
+
+  const container = d3.select('#chart-container');
+  container.html(''); // Limpiar si se redibuja
+
+  const W       = container.node().clientWidth;
+  const ANNO_H  = 140;  
+  const LABEL_W = 160;  
+  const margin  = { top: ANNO_H, right: LABEL_W, bottom: 38, left: 54 };
+  const H       = 500;
+  const iW      = W - margin.left - margin.right;
+  const iH      = H - margin.top - margin.bottom;
+
+  const svg = container.append('svg').attr('width', W).attr('height', H);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([2000, 2025]).range([0, iW]);
+  const y = d3.scaleLinear().domain([0, 100]).range([iH, 0]);
+
+  const stack  = d3.stack().keys(keys)(yearData);
+  const area = d3.area().x(d => x(d.data.year)).y0(d => y(d[0])).y1(d => y(d[1])).curve(d3.curveCatmullRom.alpha(0.5));
+
+  /* Áreas */
+  g.selectAll('.layer').data(stack).join('path').attr('d', area).attr('fill', d => colorMap[d.key]).attr('fill-opacity', 0.82).attr('stroke', '#f7f0e2').attr('stroke-width', 1.8);
+
+  /* Eje Y */
+  g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d => d + '%').tickSize(-iW))
+    .call(g2 => g2.select('.domain').remove())
+    .call(g2 => g2.selectAll('.tick line').attr('stroke', 'rgba(0,0,0,0.07)').attr('stroke-dasharray', '3,4'))
+    .call(g2 => g2.selectAll('.tick text').style('font-family', 'Outfit, sans-serif').style('font-size', '11px').style('fill', '#a09080').attr('x', -10));
+
+  svg.append('text').attr('transform', 'rotate(-90)').attr('x', -(margin.top + iH / 2)).attr('y', 18).attr('text-anchor', 'middle')
+    .style('font-size', '10px').style('font-weight', '500').style('fill', '#b0a090').text('% del Top 50 anual');
+
+  /* Eje X */
+  g.append('g').attr('transform', `translate(0,${iH})`)
+    .call(d3.axisBottom(x).tickValues([2000, 2005, 2010, 2015, 2020, 2025]).tickFormat(d3.format('d')).tickSize(5))
+    .call(g2 => g2.select('.domain').remove())
+    .call(g2 => g2.selectAll('.tick line').attr('stroke', 'rgba(0,0,0,0.12)'))
+    .call(g2 => g2.selectAll('.tick text').style('font-family', 'Outfit, sans-serif').style('font-size', '11px').style('fill', '#a09080').attr('y', 14));
+
+  /* Etiquetas a la derecha */
+  stack.forEach(series => {
+    const d = series[YEARS.length - 1];
+    if (y(d[0]) - y(d[1]) < 6) return;
+    const ly = (y(d[0]) + y(d[1])) / 2;
+    
+    g.append('line').attr('x1', iW).attr('x2', iW + 8).attr('y1', ly).attr('y2', ly).attr('stroke', colorMap[series.key]).attr('stroke-width', 1.5).attr('opacity', 0.6);
+    g.append('text').attr('x', iW + 12).attr('y', ly).attr('dominant-baseline', 'middle').style('font-size', '12.5px').style('font-weight', '600').style('fill', colorMap[series.key]).text(labelMap[series.key]);
+  });
+
+  /* ════════════════════════════════════════
+     LÍNEAS Y CAJAS DE ANOTACIÓN HTML (NUEVO)
+  ════════════════════════════════════════ */
+  ANNOTATIONS.forEach(anno => {
+    const ax = x(anno.year);
+
+    // Dibuja solo la línea punteada en el SVG
+    g.append('line')
+      .attr('x1', ax).attr('x2', ax)
+      .attr('y1', -ANNO_H + 16).attr('y2', iH)
+      .attr('stroke', '#3a3028')
+      .attr('stroke-dasharray', '4,4').attr('opacity', 0.35);
+    g.append('circle').attr('cx', ax).attr('cy', iH).attr('r', 3).attr('fill', '#3a3028').attr('opacity', 0.4);
+
+    // Crea el div HTML por encima del SVG
+    const isRightOpen = (ax + 240) < iW;
+    container.append('div')
+      .attr('class', 'anno-box')
+      .style('left', isRightOpen ? `${margin.left + ax + 10}px` : 'auto')
+      .style('right', isRightOpen ? 'auto' : `${W - margin.left - ax + 10}px`)
+      .style('top', '15px')
+      .html(`<strong>${anno.title}</strong><p>${anno.text}</p>`);
+  });
+
+  /* ════════════════════════════════════════
+     TEXTOS DENTRO DEL GRÁFICO (AHORA EN HTML)
+  ════════════════════════════════════════ */
+  IN_BAND.forEach(note => {
+    const series = stack.find(s => s.key === note.key);
+    const di = YEARS.indexOf(note.year);
+    if (!series || di < 0) return;
+    
+    const d = series[di];
+    // Solo dibujamos si el área es lo suficientemente alta
+    if (y(d[0]) - y(d[1]) < 26) return;
+
+    const nx = x(note.year);
+    const ny = (y(d[0]) + y(d[1])) / 2;
+
+    // Creamos el div flotante en lugar de texto SVG
+    container.append('div')
+      .attr('class', 'in-band-anno')
+      .style('left', `${margin.left + nx}px`)
+      .style('top', `${margin.top + ny}px`)
+      // Ahora puedes usar HTML libremente aquí adentro
+      .html(`
+        <span class="title">${note.title}</span>
+        <span class="text">${note.text}</span>
+      `);
+  });
+}
+
+draw();
+</script>
+</body>
+</html>
